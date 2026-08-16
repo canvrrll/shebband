@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#151217">
+<title>SHEBAND — Seguridad y conciencia</title>
+<style>
+:root{--bg:#fff1f6;--card:#fff;--text:#24171e;--muted:#7d6670;--line:#f1d9e3;--dark:#d63384;--danger:#e11d48;--ok:#178047;--pink-soft:#ffe0ed;--pink:#ec4899}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Trebuchet MS","Avenir Next",Avenir,Arial,sans-serif}
+header{background:linear-gradient(135deg,#d63384,#ec4899);color:#fff;padding:18px 20px calc(18px + env(safe-area-inset-top));position:sticky;top:0;z-index:20}header h1{margin:0;font-size:25px}header p{margin:4px 0 0;color:#c8c3ca}
+main{max-width:760px;margin:auto;padding:15px 15px calc(35px + env(safe-area-inset-bottom))}
+.card{background:rgba(255,255,255,.94);border-radius:24px;padding:18px;margin:12px 0;box-shadow:0 10px 30px rgba(201,80,130,.12)}
+h2{margin:0 0 10px}h3{margin:0 0 7px}p{line-height:1.5}.muted{color:var(--muted)}
+input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;font-size:16px;margin:5px 0 10px}
+button{border:0;border-radius:12px;padding:13px 16px;font-size:16px;font-weight:700;cursor:pointer}.primary{background:linear-gradient(135deg,#ef9ab9,#d65d8c);color:#fff;box-shadow:0 7px 18px rgba(214,93,140,.22)}.secondary{background:var(--pink-soft);color:#7a2450}.full{width:100%}
+.hidden{display:none}.clock{text-align:center;font-size:43px;font-weight:700;letter-spacing:2px;color:#8f3d61}.center{text-align:center}
+.tabs{display:flex;gap:7px;overflow:auto;padding-bottom:5px}.tabs button{white-space:nowrap}
+.danger{background:linear-gradient(135deg,#ed668f,#c83c68);color:#fff;width:100%;font-size:19px;padding:25px}.danger.pressed{transform:scale(.985);opacity:.88}
+.ok{color:var(--ok)}.err{color:var(--danger)}
+.contact{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:12px 0}
+.alert{border-left:5px solid var(--danger);background:#fff7f8;border-radius:10px;padding:12px;margin:10px 0}
+.map{display:inline-block;margin-top:8px;background:#eee;color:#111;text-decoration:none;padding:9px 12px;border-radius:9px}
+.news{overflow:hidden;padding:0}.slide{display:none}.slide.active{display:block}.slide img{display:block;width:100%;height:220px;object-fit:cover}.slidebody{padding:17px}.slidebody h2{font-size:20px}.tag{display:inline-block;background:#eee;border-radius:99px;padding:5px 9px;font-size:12px;margin-bottom:8px}
+.dots{text-align:center;padding:10px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#f3a6c5;margin:0 3px}.dot.active{background:#d63384}
+.source{font-size:12px;color:#777}.source a{color:inherit}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:var(--pink-soft);border-radius:14px;padding:13px}.stat b{font-size:25px;display:block}
+.notice{background:#fff0f6;border:1px solid #f0dfb1;padding:12px;border-radius:12px;font-size:13px}
+</style>
+
+<script>
+(function(){
+  try {
+    const KEY="sheband_profile_v1";
+    window.SHEBAND_STORAGE_KEY=KEY;
+    window.SHEBAND_SAVE=function(data){localStorage.setItem(KEY,JSON.stringify(data));};
+    window.SHEBAND_LOAD=function(){try{return JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){return null}};
+  } catch(e){}
+})();
+</script>
+</head>
+<body>
+<header><h1>SHEBAND</h1><p>Seguridad, prevención, información y conciencia</p></header>
+<main>
+
+<section id="setup" class="card">
+<h2>Crear tu usuario</h2>
+<p class="muted">Tu perfil se guarda en este dispositivo. No necesitás Internet para abrir esta versión.</p>
+<input id="name" autocomplete="name" placeholder="Nombre">
+<input id="email" type="email" autocomplete="email" placeholder="Email">
+<input id="pass" type="password" autocomplete="new-password" placeholder="Contraseña">
+<button id="createBtn" class="primary full" type="button">Crear usuario</button>
+<p id="setupMsg" class="muted"></p>
+</section>
+
+<section id="app" class="hidden">
+<div class="card">
+<div id="clock" class="clock">00:00:00</div>
+<div id="hello" class="center"></div>
+</div>
+
+<div class="card" style="background:linear-gradient(135deg,#fff,#ffe5f0);border:1px solid #f4c9da">
+<h2>Información y prevención</h2>
+<p class="muted">SHEBAND también busca informar. Encontrá datos sobre la situación de mujeres y niñas, violencia de género, femicidios, derechos y prevención. Las cifras se presentan con fuentes oficiales y pueden actualizarse con el tiempo.</p>
+</div>
+
+<!-- Carrusel informativo -->
+<section class="card news">
+<div class="slide active">
+<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Afghan_school_girls_in_2002.jpg" alt="Estudiantes de Afganistán">
+<div class="slidebody"><span class="tag">AFGANISTÁN</span><h2>Educación y derechos</h2>
+<p>Afganistán atraviesa una grave crisis de derechos de las mujeres y las niñas. ONU Mujeres informa que las restricciones sobre educación, trabajo, movilidad y participación pública se han intensificado.</p>
+<div class="source">Fuente: <a href="https://open.unwomen.org/en/country-results/AF" target="_blank">ONU Mujeres</a> · Imagen: Wikimedia Commons / USAID.</div></div>
+</div>
+<div class="slide">
+<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Afghanistan_2009_girls_in_the_classroom.jpg" alt="Niñas en un aula de Afganistán">
+<div class="slidebody"><span class="tag">AFGANISTÁN</span><h2>El acceso a la educación importa</h2>
+<p>Las restricciones educativas afectan las oportunidades futuras y aumentan la vulnerabilidad de mujeres y niñas. La información y la solidaridad también son herramientas de prevención.</p>
+<div class="source">Fuente: <a href="https://data.unwomen.org/country/afghanistan" target="_blank">ONU Mujeres</a> · Imagen: Wikimedia Commons / CC0.</div></div>
+</div>
+<div class="slide">
+<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Feminist_Protest_at_Buenos_Aires%2C_in_2014.jpg" alt="Manifestación de mujeres en Buenos Aires">
+<div class="slidebody"><span class="tag">ARGENTINA</span><h2>Femicidios: datos para prevenir</h2>
+<p>El Registro Nacional de Femicidios de la Justicia Argentina identificó en 2025 <b>200 víctimas directas</b> y 19 víctimas vinculadas: 219 víctimas en total. Fue una reducción del 12,3% respecto de 2024 en víctimas directas.</p>
+<div class="source">Fuente: <a href="https://www.csjn.gov.ar/novedades/detalle/13522" target="_blank">Corte Suprema de Justicia de la Nación</a> · Imagen: Wikimedia Commons.</div></div>
+</div>
+<div class="slide">
+<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Marcha_Ni_Una_Mas_Agua_de_Oro_-_2026-06-03_03.jpg" alt="Marcha contra los femicidios en Argentina">
+<div class="slidebody"><span class="tag">NI UNA MENOS</span><h2>La prevención necesita información</h2>
+<p>Los datos oficiales permiten identificar patrones y orientar políticas públicas. La Corte Suprema mantiene un registro nacional y un tablero interactivo para explorar los datos por jurisdicción y otras variables.</p>
+<div class="source">Fuente: <a href="https://www.csjn.gov.ar/omrecopilacion/omfemicidio/homefemicidio.html" target="_blank">RNFJA — Corte Suprema</a> · Imagen: Wikimedia Commons / CC BY-SA.</div></div>
+</div>
+<div class="dots" id="dots"></div>
+</section>
+
+<div class="card">
+<h2>💗 SHEBAND también informa</h2><p class="muted">La seguridad empieza con prevención, información y redes de apoyo.</p>
+<div class="statgrid">
+<div class="stat"><b>200</b><span>víctimas directas de femicidio en Argentina, 2025</span></div>
+<div class="stat"><b>219</b><span>víctimas directas + vinculadas, 2025</span></div>
+<div class="stat"><b>44 h</b><span>promedio entre víctimas directas en 2025</span></div>
+<div class="stat"><b>2,4 M</b><span>niñas afganas excluidas de educación secundaria desde 2021, según UNESCO</span></div>
+</div>
+<p class="source">Los datos cambian con el tiempo. Esta página distingue datos oficiales de contenido informativo y debe actualizarse periódicamente.</p>
+</div>
+
+<div class="tabs">
+<button class="primary" onclick="tab('emergency')">Emergencia</button>
+<button class="secondary" onclick="tab('contacts')">Contactos</button>
+<button class="secondary" onclick="tab('history')">Historial</button>
+<button class="secondary" onclick="resetApp()">Reiniciar</button>
+</div>
+
+<section id="emergency" class="card">
+<h2>Botón de emergencia</h2>
+<p class="muted">Mantené presionado durante 3 segundos. Se registra la hora y se intenta obtener tu ubicación. Si no hay Internet, la alerta puede quedar guardada en el dispositivo.</p>
+<button id="panic" class="danger" type="button">MANTENER PRESIONADO<br>3 SEGUNDOS</button>
+<p id="status" class="muted">Listo para una emergencia.</p>
+</section>
+
+<section id="contacts" class="card hidden">
+<h2>¿Con quién compartir?</h2>
+<p class="muted">Marcá las personas que querés asociar a tus alertas.</p>
+<input id="cn" placeholder="Nombre del contacto">
+<input id="ci" placeholder="Email o teléfono">
+<button class="primary full" onclick="addContact()">Agregar contacto</button>
+<div id="contactsList"></div>
+</section>
+
+<section id="history" class="card hidden">
+<h2>Historial de alertas</h2><div id="historyList"></div>
+</section>
+
+<div class="card notice">
+<b>Importante:</b> SHEBAND es un prototipo web. En esta versión local, seleccionar contactos no envía SMS ni mensajes reales. Para hacerlo necesitamos conectar un backend, base de datos y un proveedor de SMS/push. Sin ninguna conexión de red, ningún sistema web puede enviar una ubicación a otra persona.
+</div>
+</section>
+</main>
+
+<script>
+(function(){
+const KEY="sheband_v3";
+let data=null, holdTimer=null, holding=false, slide=0;
+const $=id=>document.getElementById(id);
+
+function load(){try{data=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){data=null}}
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function render(){
+ $("setup").classList.toggle("hidden",!!data);
+ $("app").classList.toggle("hidden",!data);
+ if(!data)return;
+ $("hello").textContent="Hola, "+data.name+(data.email?" · "+data.email:"");
+ renderContacts();renderHistory();
+}
+function createUser(){
+ try {
+ const name=$("name").value.trim(),email=$("email").value.trim(),pass=$("pass").value;
+ if(!name||!email||!pass){$("setupMsg").textContent="Completá los tres campos.";return}
+ if(pass.length<6){$("setupMsg").textContent="La contraseña debe tener al menos 6 caracteres.";return}
+ data={name,email,passHash:btoa(unescape(encodeURIComponent(pass))),contacts:[],alerts:[]};
+ save();$("setupMsg").textContent="Usuario creado correctamente.";render();
+ } catch(e) { $("setupMsg").textContent="No se pudo crear el usuario: "+e.message; }
+}
+function tick(){$("clock").textContent=new Date().toLocaleTimeString("es-AR",{hour12:false})}
+function tab(id){["emergency","contacts","history"].forEach(x=>$(x).classList.toggle("hidden",x!==id))}
+function renderContacts(){
+ $("contactsList").innerHTML=data.contacts.length?data.contacts.map(c=>'<div class="contact"><span><b>'+esc(c.name)+'</b><br><small>'+esc(c.info)+'</small></span><button onclick="window.toggleContact('+c.id+')">'+(c.on?"Compartir":"No compartir")+'</button></div>').join(""):"<p class='muted'>Todavía no agregaste contactos.</p>"
+}
+function addContact(){
+ const n=$("cn").value.trim(),i=$("ci").value.trim();
+ if(!n||!i){alert("Completá nombre y email o teléfono.");return}
+ data.contacts.push({id:Date.now(),name:n,info:i,on:true});save();$("cn").value="";$("ci").value="";renderContacts()
+}
+window.toggleContact=function(id){const c=data.contacts.find(x=>x.id===id);if(c)c.on=!c.on;save();renderContacts()}
+function renderHistory(){
+ if(!data.alerts.length){$("historyList").innerHTML="<p class='muted'>Todavía no hay alertas.</p>";return}
+ $("historyList").innerHTML=data.alerts.map(a=>'<div class="alert"><b>🚨 EMERGENCIA</b><br>'+new Date(a.time).toLocaleString("es-AR")+'<br>Ubicación: '+(a.lat==null?"No disponible":a.lat.toFixed(5)+", "+a.lng.toFixed(5))+'<br>Contactos: '+esc(a.rec)+' '+(a.lat==null?"":'<br><a class="map" target="_blank" href="https://www.google.com/maps?q='+a.lat+','+a.lng+'">Abrir mapa</a>')+'</div>').join("")
+}
+function finish(lat,lng){
+ const time=new Date().toISOString(),rec=data.contacts.filter(c=>c.on).map(c=>c.name).join(", ")||"ninguno";
+ data.alerts.unshift({time,lat,lng,rec});data.alerts=data.alerts.slice(0,50);save();renderHistory();tab("history");
+ $("status").innerHTML='<span class="ok">🚨 ALERTA REGISTRADA</span> · '+new Date(time).toLocaleTimeString("es-AR");
+ if(navigator.vibrate)navigator.vibrate([300,100,300]);
+}
+function trigger(){
+ holding=false;$("panic").classList.remove("pressed");$("status").textContent="Obteniendo ubicación…";
+ if(!navigator.geolocation)return finish(null,null);
+ navigator.geolocation.getCurrentPosition(p=>finish(p.coords.latitude,p.coords.longitude),()=>finish(null,null),{enableHighAccuracy:true,timeout:12000,maximumAge:0})
+}
+function down(){if(holding)return;holding=true;$("panic").classList.add("pressed");holdTimer=setTimeout(trigger,3000)}
+function up(){if(!holding)return;clearTimeout(holdTimer);holding=false;$("panic").classList.remove("pressed")}
+function resetApp(){if(confirm("¿Borrar usuario, contactos e historial de este dispositivo?")){localStorage.removeItem(KEY);location.reload()}}
+function showSlide(){
+ const slides=document.querySelectorAll(".slide"),dots=$("dots");slides.forEach((x,i)=>x.classList.toggle("active",i===slide));
+ dots.innerHTML=[0,1,2,3].map(i=>'<span class="dot '+(i===slide?"active":"")+'"></span>').join("")
+}
+load();render();tick();setInterval(tick,1000);setInterval(()=>{slide=(slide+1)%4;showSlide()},5000);showSlide();
+
+$("createBtn").addEventListener("click",createUser);
+$("panic").addEventListener("pointerdown",down);
+$("panic").addEventListener("pointerup",up);
+$("panic").addEventListener("pointercancel",up);
+$("panic").addEventListener("pointerleave",up);
+window.tab=tab;window.addContact=addContact;window.resetApp=resetApp;
+})();
+</script>
+</body></html>
