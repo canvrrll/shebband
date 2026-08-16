@@ -1,0 +1,12 @@
+{
+  "name": "SHEBAND",
+  "short_name": "SHEBAND",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff3f8",
+  "theme_color": "#d85b8b",
+  "description": "Seguridad, red de apoyo e información para mujeres.",
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}

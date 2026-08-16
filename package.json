@@ -1,0 +1,17 @@
+{
+  "name": "sheband",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SHEBAND social safety PWA with emergency alerts and messaging",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.54.0",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "twilio": "^5.8.0"
+  }
+}
