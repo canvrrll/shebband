@@ -127,10 +127,9 @@ app.post("/api/emergency", requireUser, async (req, res) => {
     devices: (contacts || []).map(c => ({ name: c.name, device: c.device_label || "SMS", phone: c.phone })),
     messaging: result
   });
+
 });
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "SHEBAND" }));
-app.use(express.static(path.join(__dirname, "public")));
-app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 app.listen(PORT, () => console.log(`SHEBAND listening on ${PORT}`));
