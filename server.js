@@ -1,135 +1,518 @@
 require("dotenv").config();
+
 const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 const express = require("express");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const { createClient } = require("@supabase/supabase-js");
-const twilio = require("twilio");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SECRET = process.env.JWT_SECRET || "sheband-development-secret";
+
+const DATA_DIR = path.join(__dirname, "data");
+const DB_FILE = path.join(DATA_DIR, "users.json");
+
+fs.mkdirSync(DATA_DIR, { recursive: true });
+
+if (!fs.existsSync(DB_FILE)) {
+  fs.writeFileSync(
+    DB_FILE,
+    JSON.stringify(
+      {
+        users: [],
+        contacts: [],
+        posts: [],
+        messages: [],
+        emergencyAlerts: []
+      },
+      null,
+      2
+    )
+  );
+}
+
+function readDB() {
+  try {
+    return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+  } catch {
+    return {
+      users: [],
+      contacts: [],
+      posts: [],
+      messages: [],
+      emergencyAlerts: []
+    };
+  }
+}
+
+function writeDB(db) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(morgan("tiny"));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(cookieParser());
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function createToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      username: user.username
+    },
+    SECRET,
+    {
+      expiresIn: "30d"
+    }
+  );
+}
 
-const admin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
-  : null;
+function setSession(res, user) {
+  res.cookie("sheband_session", createToken(user), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 30 * 24 * 60 * 60 * 1000
+  });
+}
 
-app.get("/api/config", (_req, res) => {
+function auth(req, res, next) {
+  try {
+    const token = req.cookies.sheband_session;
+
+    if (!token) {
+      return res.status(401).json({
+        error: "Sesión requerida."
+      });
+    }
+
+    req.user = jwt.verify(token, SECRET);
+    next();
+  } catch {
+    res.status(401).json({
+      error: "Sesión inválida."
+    });
+  }
+}
+
+function validUsername(username) {
+  return /^[A-Za-z0-9_]{3,24}$/.test(username);
+}
+
+/* HEALTH */
+
+app.get("/health", (_req, res) => {
   res.json({
-    supabaseUrl: SUPABASE_URL || "",
-    supabaseAnonKey: SUPABASE_ANON_KEY || "",
-    configured: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY),
-    messagingConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_FROM))
+    ok: true,
+    service: "SHEBAND"
   });
 });
 
-async function requireUser(req, res, next) {
-  if (!admin) return res.status(503).json({ error: "Backend sin configurar. Falta Supabase en las variables de entorno." });
-  const auth = req.headers.authorization || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token) return res.status(401).json({ error: "Sesión requerida." });
-  const { data, error } = await admin.auth.getUser(token);
-  if (error || !data?.user) return res.status(401).json({ error: "Sesión inválida." });
-  req.user = data.user;
-  next();
-}
+/* AUTH */
 
-function cleanPhone(value) {
-  if (!value) return null;
-  const p = String(value).trim();
-  return /^\+[1-9]\d{7,14}$/.test(p) ? p : null;
-}
+app.post("/api/register", async (req, res) => {
+  try {
+    const username = String(req.body?.username || "").trim();
+    const password = String(req.body?.password || "");
 
-async function sendEmergencySms(alert, contacts) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const serviceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
-  const from = process.env.TWILIO_FROM;
-  if (!sid || !token || (!serviceSid && !from)) {
-    return { configured: false, sent: [], failed: [] };
-  }
-  const client = twilio(sid, token);
-  const map = new Map();
-  const body = [
-    "🚨 SHEBAND — ALERTA DE EMERGENCIA",
-    `Usuario: ${alert.user_name || "Contacto SHEBAND"}`,
-    `Hora: ${new Date(alert.created_at).toLocaleString("es-AR")}`,
-    alert.latitude != null && alert.longitude != null
-      ? `Ubicación: https://www.google.com/maps?q=${alert.latitude},${alert.longitude}`
-      : "Ubicación: no disponible"
-  ].join("\n");
-  const sent = [], failed = [];
-  for (const c of contacts) {
-    const to = cleanPhone(c.phone);
-    if (!to || map.has(to)) continue;
-    map.set(to, true);
-    try {
-      const msg = await client.messages.create({
-        body,
-        to,
-        ...(serviceSid ? { messagingServiceSid: serviceSid } : { from })
+    if (!validUsername(username)) {
+      return res.status(400).json({
+        error:
+          "El usuario debe tener entre 3 y 24 caracteres y solo puede usar letras, números o _."
       });
-      sent.push({ id: c.id, phone: to, sid: msg.sid });
-    } catch (e) {
-      failed.push({ id: c.id, phone: to, error: e.message });
     }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "La contraseña debe tener al menos 6 caracteres."
+      });
+    }
+
+    const db = readDB();
+
+    const exists = db.users.some(
+      user => user.username.toLowerCase() === username.toLowerCase()
+    );
+
+    if (exists) {
+      return res.status(409).json({
+        error: "Ese nombre de usuario ya está ocupado."
+      });
+    }
+
+    const user = {
+      id: crypto.randomUUID(),
+      username,
+      passwordHash: await bcrypt.hash(password, 12),
+      privateAccount: true,
+      bio: "",
+      avatarUrl: "",
+      createdAt: new Date().toISOString()
+    };
+
+    db.users.push(user);
+    writeDB(db);
+
+    setSession(res, user);
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        privateAccount: user.privateAccount,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl
+      }
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "No se pudo crear la cuenta."
+    });
   }
-  return { configured: true, sent, failed };
-}
+});
 
-app.post("/api/emergency", requireUser, async (req, res) => {
-  const { latitude, longitude, accuracy, capturedAt, deviceLabel } = req.body || {};
-  const lat = Number.isFinite(Number(latitude)) ? Number(latitude) : null;
-  const lng = Number.isFinite(Number(longitude)) ? Number(longitude) : null;
-  const acc = Number.isFinite(Number(accuracy)) ? Number(accuracy) : null;
+app.post("/api/login", async (req, res) => {
+  try {
+    const username = String(req.body?.username || "").trim();
+    const password = String(req.body?.password || "");
 
-  const { data: profile } = await admin.from("profiles").select("display_name, private_account").eq("id", req.user.id).maybeSingle();
-  const { data: contacts, error: cErr } = await admin
-    .from("contacts")
-    .select("id,name,phone,notify_emergency,device_label")
-    .eq("owner_id", req.user.id)
-    .eq("notify_emergency", true);
+    const db = readDB();
 
-  if (cErr) return res.status(500).json({ error: cErr.message });
+    const user = db.users.find(
+      item => item.username.toLowerCase() === username.toLowerCase()
+    );
 
-  const alert = {
-    user_id: req.user.id,
-    user_name: profile?.display_name || req.user.user_metadata?.name || "Usuario SHEBAND",
-    latitude: lat,
-    longitude: lng,
-    accuracy_m: acc,
-    created_at: capturedAt || new Date().toISOString(),
-    device_label: deviceLabel || "Dispositivo SHEBAND",
-    status: "created"
-  };
+    if (!user) {
+      return res.status(401).json({
+        error: "Usuario o contraseña incorrectos."
+      });
+    }
 
-  const { data: saved, error: aErr } = await admin.from("emergency_alerts").insert(alert).select().single();
-  if (aErr) return res.status(500).json({ error: aErr.message });
+    const valid = await bcrypt.compare(password, user.passwordHash);
 
-  const result = await sendEmergencySms(saved, contacts || []);
-  const status = result.sent.length ? "notified" : "created";
-  await admin.from("emergency_alerts").update({ status }).eq("id", saved.id);
+    if (!valid) {
+      return res.status(401).json({
+        error: "Usuario o contraseña incorrectos."
+      });
+    }
+
+    setSession(res, user);
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        privateAccount: user.privateAccount,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl
+      }
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "No se pudo iniciar sesión."
+    });
+  }
+});
+
+app.get("/api/me", auth, (req, res) => {
+  const db = readDB();
+
+  const user = db.users.find(item => item.id === req.user.id);
+
+  if (!user) {
+    return res.status(404).json({
+      error: "Usuario no encontrado."
+    });
+  }
+
+  res.json({
+    authenticated: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      privateAccount: user.privateAccount,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl
+    }
+  });
+});
+
+app.post("/api/logout", (_req, res) => {
+  res.clearCookie("sheband_session");
+
+  res.json({
+    ok: true
+  });
+});
+
+/* PROFILE */
+
+app.patch("/api/profile", auth, (req, res) => {
+  const db = readDB();
+
+  const user = db.users.find(item => item.id === req.user.id);
+
+  if (!user) {
+    return res.status(404).json({
+      error: "Usuario no encontrado."
+    });
+  }
+
+  if (typeof req.body?.bio === "string") {
+    user.bio = req.body.bio.slice(0, 500);
+  }
+
+  if (typeof req.body?.privateAccount === "boolean") {
+    user.privateAccount = req.body.privateAccount;
+  }
+
+  if (typeof req.body?.avatarUrl === "string") {
+    user.avatarUrl = req.body.avatarUrl;
+  }
+
+  writeDB(db);
 
   res.json({
     ok: true,
-    alertId: saved.id,
-    time: saved.created_at,
-    latitude: saved.latitude,
-    longitude: saved.longitude,
-    accuracy: saved.accuracy_m,
-    devices: (contacts || []).map(c => ({ name: c.name, device: c.device_label || "SMS", phone: c.phone })),
-    messaging: result
+    user: {
+      id: user.id,
+      username: user.username,
+      privateAccount: user.privateAccount,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl
+    }
   });
-
 });
 
-app.get("/{*splat}", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
+/* CONTACTS */
 
-app.listen(PORT, () => console.log(`SHEBAND listening on ${PORT}`));
+app.get("/api/contacts", auth, (req, res) => {
+  const db = readDB();
+
+  const contacts = db.contacts.filter(
+    contact => contact.ownerId === req.user.id
+  );
+
+  res.json(contacts);
+});
+
+app.post("/api/contacts", auth, (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  const phone = String(req.body?.phone || "").trim();
+  const deviceLabel =
+    String(req.body?.deviceLabel || "").trim() || "SMS";
+
+  if (!name) {
+    return res.status(400).json({
+      error: "El nombre es obligatorio."
+    });
+  }
+
+  const db = readDB();
+
+  const contact = {
+    id: crypto.randomUUID(),
+    ownerId: req.user.id,
+    name,
+    phone,
+    deviceLabel,
+    notifyEmergency: true,
+    createdAt: new Date().toISOString()
+  };
+
+  db.contacts.push(contact);
+  writeDB(db);
+
+  res.json({
+    ok: true,
+    contact
+  });
+});
+
+app.delete("/api/contacts/:id", auth, (req, res) => {
+  const db = readDB();
+
+  db.contacts = db.contacts.filter(
+    contact =>
+      !(
+        contact.id === req.params.id &&
+        contact.ownerId === req.user.id
+      )
+  );
+
+  writeDB(db);
+
+  res.json({
+    ok: true
+  });
+});
+
+/* POSTS */
+
+app.get("/api/posts", auth, (req, res) => {
+  const db = readDB();
+
+  const posts = db.posts
+    .filter(post => {
+      if (post.userId === req.user.id) return true;
+
+      const owner = db.users.find(user => user.id === post.userId);
+
+      return owner && owner.privateAccount === false;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+  res.json(posts);
+});
+
+app.post("/api/posts", auth, (req, res) => {
+  const caption = String(req.body?.caption || "").trim();
+  const imageUrl = String(req.body?.imageUrl || "").trim();
+
+  if (!caption && !imageUrl) {
+    return res.status(400).json({
+      error: "La publicación está vacía."
+    });
+  }
+
+  const db = readDB();
+
+  const post = {
+    id: crypto.randomUUID(),
+    userId: req.user.id,
+    username: req.user.username,
+    caption,
+    imageUrl,
+    createdAt: new Date().toISOString()
+  };
+
+  db.posts.push(post);
+  writeDB(db);
+
+  res.json({
+    ok: true,
+    post
+  });
+});
+
+/* MESSAGES */
+
+app.get("/api/messages", auth, (req, res) => {
+  const db = readDB();
+
+  const messages = db.messages.filter(
+    message => message.userId === req.user.id
+  );
+
+  res.json(messages);
+});
+
+app.post("/api/messages", auth, (req, res) => {
+  const body = String(req.body?.body || "").trim();
+
+  if (!body) {
+    return res.status(400).json({
+      error: "El mensaje está vacío."
+    });
+  }
+
+  const db = readDB();
+
+  const message = {
+    id: crypto.randomUUID(),
+    userId: req.user.id,
+    username: req.user.username,
+    body: body.slice(0, 2000),
+    createdAt: new Date().toISOString()
+  };
+
+  db.messages.push(message);
+  writeDB(db);
+
+  res.json({
+    ok: true,
+    message
+  });
+});
+
+/* EMERGENCY */
+
+app.post("/api/emergency", auth, (req, res) => {
+  const latitude =
+    Number.isFinite(Number(req.body?.latitude))
+      ? Number(req.body.latitude)
+      : null;
+
+  const longitude =
+    Number.isFinite(Number(req.body?.longitude))
+      ? Number(req.body.longitude)
+      : null;
+
+  const accuracy =
+    Number.isFinite(Number(req.body?.accuracy))
+      ? Number(req.body.accuracy)
+      : null;
+
+  const db = readDB();
+
+  const contacts = db.contacts.filter(
+    contact =>
+      contact.ownerId === req.user.id &&
+      contact.notifyEmergency
+  );
+
+  const alert = {
+    id: crypto.randomUUID(),
+    userId: req.user.id,
+    username: req.user.username,
+    latitude,
+    longitude,
+    accuracy,
+    contacts: contacts.map(contact => ({
+      name: contact.name,
+      phone: contact.phone,
+      deviceLabel: contact.deviceLabel
+    })),
+    createdAt: new Date().toISOString(),
+    status: "created"
+  };
+
+  db.emergencyAlerts.push(alert);
+  writeDB(db);
+
+  res.json({
+    ok: true,
+    alertId: alert.id,
+    time: alert.createdAt,
+    latitude,
+    longitude,
+    accuracy,
+    contacts: alert.contacts
+  });
+});
+
+/* STATIC SITE */
+
+app.use(express.static(__dirname));
+
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.listen(PORT, () => {
+  console.log(`SHEBAND funcionando en puerto ${PORT}`);
+});
