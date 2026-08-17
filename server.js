@@ -130,6 +130,6 @@ app.post("/api/emergency", requireUser, async (req, res) => {
 
 });
 
-app.get("/{*splat}", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 app.listen(PORT, () => console.log(`SHEBAND listening on ${PORT}`));
